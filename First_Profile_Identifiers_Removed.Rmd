@@ -1,0 +1,515 @@
+---
+title: "Renamed Generic for Privacy"
+#date: `r format(Sys.time(), "%d %B %Y")`
+output: 
+  flexdashboard::flex_dashboard:
+    theme: cosmo
+    logo: ultraicon.jpg
+    favicon: ultraicon.jpg
+---
+
+<style>.main-container { max-width: 1200px; margin-left: 0; margin-right: auto; }</style>
+
+<!-- Pick a THEME keyword above from https://rstudio.github.io/shinythemes/ 
+     My faves are spacelab (blue), united (purple), lumen and readable (white), --> 
+
+```{r configuration}
+
+filepath1 <- "/Users/name/Documents/generic/DataTable1.csv"
+filepath2 <- "/Users/name/Documents/generic/DataTable2.csv"
+filepath3 <- "/Users/name/Documents/generic/DataTable3.csv"
+filepath4 <- "/Users/name/Documents/generic/DataTable4.csv"
+filepath5 <- "/Users/name/Documents/generic/ColumnA.csv"
+
+missing.threshold <- 50      # Raise a warning when more than X% of a feature is missing
+outlier.threshold <- .3      # Raise a warning when more than X% of a feature are outliers
+zero.threshold    <- .8      # Raise a warning when more than X% of a feature is zeroes
+unique.threshold  <- 15      # Raise a warning when a categorical variable has more than X groups ("high cardinality")
+p.threshold       <- 0.05    # Raise a warning when statistical tests reveal significance at this alpha level
+
+# Set this to 0.01 or similar small number if dataset is larger (n > 100k)
+sf                <- 1    # Sampling fraction for computationally complex visualizations
+
+### (OPTIONAL) SET UP DATA TYPE DEFINITIONS & KEY BUSINESS VARIABLES EXTERNALLY
+# source(paste0(filepath, "data-type-definitions.R"))
+
+```
+
+
+
+``````{r global-options, include=FALSE}
+# This section suppresses all code and errors so only charts, graphs, and tables are visible. 
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='figures/', echo=FALSE, warning=FALSE, message=FALSE, error=FALSE)
+
+########## LOAD PACKAGES: Add your extra packages to the list. Common profiling packages are listed already.
+   if (!require("pacman")) install.packages("pacman")
+   library(pacman)
+   pacman::p_load(ggplot2, dplyr, readr, tidyr, DT, knitr, lubridate, sparkline, flextable, openair, skimr,
+                  magrittr, purrr, tibble, data.table, stringr, stringi, htmltools, janitor, ggcorrplot, tidyr,
+                  cowplot, vroom, dlookr, visdat, DataExplorer, inspectdf, ggExtra, xray, GGally)
+   
+#############################################################################################################################
+# Load common regular expressions (e.g. formats of URLs and Emails)
+source("https://raw.githubusercontent.com/NicoleRadziwill/R-Functions/master/regexeR.R")
+   
+# Load supplemental profiling functions
+source("https://raw.githubusercontent.com/NicoleRadziwill/R-Functions/master/profiling.R")
+   
+```
+
+
+```{r load-clean}
+# This section prepares a **data frame** named **xdata** that will be the subject of the deep profiling.
+
+######### LOAD DATA (or sample of data) TO PROFILE ###############################################
+data1 <- readr::read_csv(paste0(filepath1)) %>% janitor::clean_names()
+DataTable1 <- data1  # Create container for manipulated data (xdata) based on raw data (data) that is ready to prof
+data2 <- readr::read_csv(paste0(filepath2)) %>% janitor::clean_names()
+DataTable2 <- data2  # Create container for manipulated data (xdata) based on raw data (data) that is ready to prof
+data3 <- readr::read_csv(paste0(filepath3)) %>% janitor::clean_names()
+DataTable3 <- data3  # Create container for manipulated data (xdata) based on raw data (data) that is ready to prof
+data4 <- readr::read_csv(paste0(filepath4)) %>% janitor::clean_names()
+DataTable4 <- data4  # Create container for manipulated data (xdata) based on raw data (data) that is ready to prof
+data5 <- readr::read_csv(paste0(filepath5)) %>% janitor::clean_names()
+ColumnA <- data5  # Create container for manipulated data (xdata) based on raw data (data) that is ready to prof
+```
+
+
+Sidebar {.sidebar data-width=550}
+================================
+
+### Executive Summary
+```{r executive-summary}
+htmltools::includeMarkdown("ExecutiveSummary.md")
+```
+
+
+
+###Dataset Level
+===================================== 
+
+Column {.tabset}
+-------------------------------------
+
+### DataTable 1
+```{r dataset-summary-skim, results='asis'}
+skimr::skim(DataTable1)
+```
+
+### DataTable 2
+```{r dataset2-summary-skim, results='asis'}
+skimr::skim(DataTable2)
+# Include R code to generate one table, chart, or plot
+
+```
+
+
+### DataTable 3
+```{r dataset3-summary-skim, results='asis'}
+skimr::skim(DataTable3)
+# Include R code to generate one table, chart, or plot
+
+```
+
+### DataTable 4
+```{r dataset4-summary-skim, results='asis'}
+skimr::skim(DataTable4)
+
+```
+
+### All DataTable Column A data
+```{r dataset5-summary-skim, results='asis'}
+skimr::skim(ColumnA)
+
+```
+
+
+
+### DataTable 1-4 Table
+```{r dataset-summary-1}
+# Prepare Data
+DataTable1 %>% DataExplorer::introduce() -> values
+
+   values$pct_missing_cells <- (values$total_missing_values/values$total_observations)*100
+   variables <- c(names(DataExplorer::introduce(DataTable1)),"pct_missing_cells")
+
+# Put info in right format for printing table
+   all.values <- values %>% data.table::transpose()
+   overall.df <- data.frame(cbind(variables,all.values))
+   names(overall.df) <- c("Variable","Value")
+   overall.df$Description <- c("Number of Rows/Observations","Number of Columns/Features","Categorical Variables",
+                      "Quantitative Variables","Missing Columns/Features","Missing Cells (#)",
+                      "Complete Rows/Observations","Total Cells","Memory Usage (KB)","Missing Cells (%)")
+
+   # OPTIONAL: If you run this section and want to REORDER the columns for clearer communication, reorder them here:
+   overall.df$Order <- c(1,3,5,6,4,7,2,9,10,8)
+
+# Call out missing column names in the table footnote:
+  
+   
+   # Create and display table:
+   overall.df %>% arrange(Order) %>% select(Description,Value) %>% regulartable() %>% 
+      autofit() %>% colformat_num(digits=0, big.mark=",") 
+   
+```
+
+
+### DataTable 1-4 Avg Column A Table
+```{r dataset-summary-2}
+# Prepare Data
+ColumnA %>% DataExplorer::introduce() -> values
+
+   values$pct_missing_cells <- (values$total_missing_values/values$total_observations)*100
+   variables <- c(names(DataExplorer::introduce(ColumnA)),"pct_missing_cells")
+
+# Put info in right format for printing table
+   all.values <- values %>% data.table::transpose()
+   overall.df <- data.frame(cbind(variables,all.values))
+   names(overall.df) <- c("Variable","Value")
+   overall.df$Description <- c("Number of Rows/Observations","Number of Columns/Features","Categorical Variables",
+                      "Quantitative Variables","Missing Columns/Features","Missing Cells (#)",
+                      "Complete Rows/Observations","Total Cells","Memory Usage (KB)","Missing Cells (%)")
+
+   # OPTIONAL: If you run this section and want to REORDER the columns for clearer communication, reorder them here:
+   overall.df$Order <- c(1,3,5,6,4,7,2,9,10,8)
+
+# Call out missing column names in the table footnote:
+  
+   
+   # Create and display table:
+   overall.df %>% arrange(Order) %>% select(Description,Value) %>% regulartable() %>% 
+      autofit() %>% colformat_num(digits=0, big.mark=",") 
+   
+
+```
+
+
+
+
+
+### DataTable 1 plot 
+```{r dataset-summary-plot}
+
+DataTable1 %>% DataExplorer::plot_intro()
+```
+
+
+### Column A plot 
+```{r dataset-summary-plot2}
+
+ColumnA %>% DataExplorer::plot_intro()
+
+```
+
+
+### Memory Usage DataTable
+```{r memory-usage}
+DataTable1 %>% inspectdf::inspect_mem() %>% arrange(desc(bytes)) %>% top_n(10) %>% regulartable() %>% autofit()
+
+```
+
+
+### Memory Usage Column A
+```{r memory-usage-2}
+ColumnA %>% inspectdf::inspect_mem() %>% arrange(desc(bytes)) %>% top_n(10) %>% regulartable() %>% autofit()
+
+```
+
+Summary 
+===================================== 
+
+Column {.tabset}
+-------------------------------------
+
+### Coverage DataTable
+```{r coverage}
+DataTable1 %>% visdat::vis_dat(warn_large_data = FALSE) 
+
+```
+
+### Coverage Column A
+```{r coverage-2}
+ColumnA %>% visdat::vis_dat(warn_large_data = FALSE) 
+
+```
+
+### All Numeric DataTable
+```{r basic-profile-numeric}
+DataTable1 %>% select_if(is.numeric) %>% dlookr::diagnose_numeric() -> left.df
+DataTable1 %>% select_if(is.numeric) %>% inspectdf::inspect_num() ->   right.df
+
+sparkify <- full_join(left.df, right.df) %>% 
+  select(variables, min, Q1, median, mean, sd, Q3, max, zero, minus, outlier, hist) %>%
+  rename(num_outliers=outlier) %>% mutate_if(is.numeric, round, digits=3)
+
+  hist_sparks <- sparkify$hist %>% purrr::map( function(x) { 
+    as.character(htmltools::as.tags(sparkline(x$prop)))  })
+    sparkify$hist_sparks <- hist_sparks
+  
+  sparkify %>% select(-hist) %>% 
+    datatable(rownames = FALSE, caption = htmltools::tags$caption(
+       style = 'caption-side: top; text-align: left; font-size: 24px;',
+       'NUMERIC ELEMENTS'),
+       options= list(
+         columnDefs=list(list(visible=FALSE, targets=c(c(10)))),
+         fnDrawCallback=htmlwidgets::JS('function(){HTMLWidgets.staticRender();}')
+       )
+    ) %>% sparkline::spk_add_deps()
+
+```
+
+
+### All Numeric Column A
+```{r basic-profile-numeric-2}
+ColumnA %>% select_if(is.numeric) %>% dlookr::diagnose_numeric() -> left.df
+ColumnA %>% select_if(is.numeric) %>% inspectdf::inspect_num() ->   right.df
+
+sparkify <- full_join(left.df, right.df) %>% 
+  select(variables, min, Q1, median, mean, sd, Q3, max, zero, minus, outlier, hist) %>%
+  rename(num_outliers=outlier) %>% mutate_if(is.numeric, round, digits=3)
+
+  hist_sparks <- sparkify$hist %>% purrr::map( function(x) { 
+    as.character(htmltools::as.tags(sparkline(x$prop)))  })
+    sparkify$hist_sparks <- hist_sparks
+  
+  sparkify %>% select(-hist) %>% 
+    datatable(rownames = FALSE, caption = htmltools::tags$caption(
+       style = 'caption-side: top; text-align: left; font-size: 24px;',
+       'NUMERIC ELEMENTS'),
+       options= list(
+         columnDefs=list(list(visible=FALSE, targets=c(c(10)))),
+         fnDrawCallback=htmlwidgets::JS('function(){HTMLWidgets.staticRender();}')
+       )
+    ) %>% sparkline::spk_add_deps()
+  
+```
+
+
+Distributions
+===================================== 
+
+Column {.tabset}
+-------------------------------------
+
+### All Numeric DataTable
+```{r distrib-quant}
+DataTable1 %>% select_if(is.numeric) %>% DataExplorer::plot_histogram(ncol=3, theme_config=list("text"=element_text(size=8)))
+```
+
+### All Numeric Column A
+```{r distrib-quant-2}
+ColumnA %>% select_if(is.numeric) %>% DataExplorer::plot_histogram(ncol=3, theme_config=list("text"=element_text(size=8)))
+```
+
+### Tests for Normality DataTable
+```{r distrib-qq}
+DataTable1 %>% select_if(is.numeric) %>% DataExplorer::plot_qq(ncol=3, theme_config=list("text"=element_text(size=8)))
+
+```
+
+### Tests for Normality
+```{r distrib-qq-2}
+ColumnA %>% select_if(is.numeric) %>% DataExplorer::plot_qq(ncol=3, theme_config=list("text"=element_text(size=8)))
+```
+
+### Log Distributions DataTable
+```{r distrib-log}
+DataTable1 %>% select_if(is.numeric) %>% 
+  mutate_all(~log1p(.)) %>% DataExplorer::plot_histogram(ncol=3, theme_config=list("text"=element_text(size=8)))
+```
+
+### Log Distributions Column A
+```{r distrib-log-2}
+ColumnA %>% select_if(is.numeric) %>% 
+  mutate_all(~log1p(.)) %>% DataExplorer::plot_histogram(ncol=3, theme_config=list("text"=element_text(size=8)))
+```
+
+### Tests for Lognormality DataTable
+```{r distrib-log-qq}
+DataTable1 %>% select_if(is.numeric) %>% 
+  mutate_all(~log1p(.)) %>% DataExplorer::plot_qq(ncol=3, theme_config=list("text"=element_text(size=8)))
+```
+
+### Boxplots by Factors
+```{r distrib-boxplots}
+# This automatically ignores high cardinality categorical variables (more than 50 categories)
+factorlist <- DataTable1 %>% select_if(is.factor) %>% colnames()
+
+for(f in factorlist) {
+   DataTable1 %>% DataExplorer::plot_boxplot(ncol=3, by=f, theme_config=list("text"=element_text(size=8)))
+} 
+```
+  
+Relationships and Correlations
+=====================================
+
+Column {.tabset}
+-------------------------------------
+
+### Scatterplots DataTable
+```{r scatterplots}
+DataTable1 %>% select_if(is.numeric) %>% ggpairs()
+```
+
+### Scatterplots Column A
+```{r scatterplots-2}
+ColumnA %>% select_if(is.numeric) %>% ggpairs()
+```
+
+### Marginal Plots DataTable
+```{r marginals}
+# Marginal plots are documented at https://deanattali.com/2015/03/29/ggExtra-r-package/ 
+
+# CHOOSE THE QUANTITATIVE VARIABLES YOU WANT on the X and Y AXES MANUALLY. 
+# I chose two pairs for this example: (length, years) and (length, appliance)
+
+p <- ggplot(DataTable1, aes(x = "Column B[15,1]", y="ColumnB[15,1]")) + geom_point() + theme_bw() 
+
+p + ggtitle("ColumnB VS ColumnC")
+
+# Now display the plot you stored in the variable p:
+ggMarginal(p, type="histogram")
+
+
+p <- ggplot(DataTable1, aes(x="ColumnC total[15]", y="ColumnD total - crop[15]")) + geom_point() + theme_bw() 
+
+p + ggtitle("ColumnC Total VS ColumnD Total")
+
+ggMarginal(p, type="histogram")
+
+```
+
+### Correlation Plot DataTable
+```{r corr-plot}
+DataTable1 %>% select_if(is.numeric) %>% ggcorr(., nbreaks=5, palette="RdGy", label=TRUE, label_size=3, label_color="white")
+```
+
+### Correlation Plot Column A
+```{r corr-plot-2}
+ColumnA %>% select_if(is.numeric) %>% ggcorr(., nbreaks=5, palette="RdGy", label=TRUE, label_size=3, label_color="white")
+```
+
+Data Quality Issues
+===================================== 
+
+Column {.tabset}
+-------------------------------------
+
+### Anomalies DataTable
+```{r anomalies}
+DataTable1 %>% xray::anomalies() -> anomalous
+anomalous$variables %>% select(-q,type) %>% arrange(desc(anomalous_percent)) %>% regulartable() %>% autofit()
+```
+
+### Anomalies Column A
+```{r anomalies-2}
+ColumnA %>% xray::anomalies() -> anomalous
+anomalous$variables %>% select(-q,type) %>% arrange(desc(anomalous_percent)) %>% regulartable() %>% autofit()
+```
+
+### Missing Data DataTable
+```{r missing-data-table-1}
+DataTable1 %>% dlookr::diagnose() %>% 
+   arrange(desc(missing_percent)) %>% mutate_if(is.numeric, round, digits=3) %>% 
+   DT::datatable(rownames = FALSE, caption = htmltools::tags$caption(
+   style = 'caption-side: top; text-align: left; font-size: 24px;',
+   'MISSING DATA (Summary)'))
+```
+
+### Missing Data Column A
+```{r missing-data-table-1-2}
+ColumnA %>% dlookr::diagnose() %>% 
+   arrange(desc(missing_percent)) %>% mutate_if(is.numeric, round, digits=3) %>% 
+   DT::datatable(rownames = FALSE, caption = htmltools::tags$caption(
+   style = 'caption-side: top; text-align: left; font-size: 24px;',
+   'MISSING DATA (Summary)'))
+```
+
+### Missing Data DataTable
+```{r missing-data-table-2}
+# This colors all rows that are "good" (missing percent < threshold set in configuration chunk)
+DataTable1 %>% dlookr::diagnose() %>% arrange(missing_percent) %>% regulartable() %>% autofit() %>% 
+    bg(i=~missing_percent<missing.threshold, bg="#cceecc", part="body")
+```
+
+
+### Missing Data Column A
+```{r missing-data-table-2-2}
+# This colors all rows that are "good" (missing percent < threshold set in configuration chunk)
+ColumnA %>% dlookr::diagnose() %>% arrange(missing_percent) %>% regulartable() %>% autofit() %>% 
+    bg(i=~missing_percent<missing.threshold, bg="#cceecc", part="body")
+```
+
+
+### Missing Data DataTable
+```{r missing-data-visdat}
+# Include R code to generate one table, chart, or plot
+DataTable1 %>% visdat::vis_dat(warn_large_data=FALSE, sort_type=F)
+
+# Add "+ theme(axis.text.x=element_blank())" to the above line of code to remove variable names, if there are too many
+```
+
+### Missing Data Column A
+```{r missing-data-visdat-2}
+# Include R code to generate one table, chart, or plot
+ColumnA %>% visdat::vis_dat(warn_large_data=FALSE, sort_type=F)
+
+# Add "+ theme(axis.text.x=element_blank())" to the above line of code to remove variable names, if there are too many
+```
+
+### Missing Data DataTable
+```{r missing-data-dataexplorer}
+# Include R code to generate one table, chart, or plot
+DataTable1 %>% DataExplorer::plot_missing()
+```
+
+### Missing Data Column A
+```{r missing-data-dataexplorer-2}
+# Include R code to generate one table, chart, or plot
+ColumnA %>% DataExplorer::plot_missing()
+```
+
+### Imbalanced Classes DataTable
+```{r imbalanced-1-1}
+DataTable1 %>% mutate_if(is.factor, as.character) %>% inspect_imb()
+```
+
+### Imbalanced Classes Column A
+```{r imbalanced-1-2}
+ColumnA %>% mutate_if(is.factor, as.character) %>% inspect_imb()
+```
+
+### Imbalanced Classes Plot DataTable
+```{r imbalanced-2-1}
+DataTable1 %>% mutate_if(is.factor, as.character) %>% inspect_imb() %>% show_plot()
+```
+
+### Imbalanced Classes Plot Column A
+```{r imbalanced-2-2}
+ColumnA %>% mutate_if(is.factor, as.character) %>% inspect_imb() %>% show_plot()
+```
+
+### Potential Outliers DataTable
+```{r outliers, echo=FALSE, warning=FALSE, message=FALSE}
+DataTable1 %>% select_if(is.numeric) %>% dlookr::diagnose_outlier() -> outliers.df
+DataTable1 %>% select_if(is.numeric) %>% dlookr::diagnose_numeric() -> outlierdetails.df
+
+inner_join(outliers.df, outlierdetails.df, "variables") %>% 
+  select(-with_mean,-without_mean,-outliers_cnt,-outliers_mean) %>%
+  arrange(desc(outliers_ratio)) %>% rename(num_outliers=outlier) %>% regulartable() %>% autofit() %>% 
+  bg(i=~outliers_ratio>5, bg="#eecccc", part="body")
+
+```
+
+### Potential Outliers Column A
+```{r outliers-2, echo=FALSE, warning=FALSE, message=FALSE}
+ColumnA %>% select_if(is.numeric) %>% dlookr::diagnose_outlier() -> outliers.df
+ColumnA %>% select_if(is.numeric) %>% dlookr::diagnose_numeric() -> outlierdetails.df
+
+inner_join(outliers.df, outlierdetails.df, "variables") %>% 
+  select(-with_mean,-without_mean,-outliers_cnt,-outliers_mean) %>%
+  arrange(desc(outliers_ratio)) %>% rename(num_outliers=outlier) %>% regulartable() %>% autofit() %>% 
+  bg(i=~outliers_ratio>5, bg="#eecccc", part="body")
+
+```
+
